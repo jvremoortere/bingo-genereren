@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bingo Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            screens: {
+              print: { raw: 'print' },
+            },
+          },
+        },
+      };
+    </script>
+    
+    <!-- MathJax Configuration (SVG Mode) -->
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['\\(', '\\)']],
+          displayMath: [['\\[', '\\]']],
+          packages: {'[+]': ['noerrors', 'noundefined']}
+        },
+        svg: {
+          fontCache: 'none', /* Crucial for html2canvas/pdf generation: prevents shared symbol references */
+          scale: 1,
+          displayAlign: 'center'
+        },
+        startup: {
+          typeset: false
+        }
+      };
+    </script>
+    <!-- Using tex-svg.js instead of tex-chtml.js for better canvas rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+      @media print {
+        @page {
+          margin: 1cm;
+          size: A4 portrait;
+        }
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+      /* Ensure MathJax SVG fits well */
+      mjx-container {
+        outline: none !important;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      mjx-container > svg {
+        display: inline-block; /* Fix alignment in flex containers */
+        max-width: 100%;
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-50 text-gray-900 font-sans">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

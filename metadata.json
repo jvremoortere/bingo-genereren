@@ -1,0 +1,5 @@
+{
+  "name": "Bingo genereren",
+  "description": "Generates printable 3x3 bingo cards for any subject using AI.",
+  "requestFramePermissions": []
+}
