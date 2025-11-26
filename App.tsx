@@ -34,6 +34,10 @@ const App: React.FC = () => {
   const [isDownloadingImages, setIsDownloadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    console.log('Bingo App v1.0.5 Loaded');
+  }, []);
+
   // --- Combinatorics Helpers ---
   const getCombinations = (n: number, r: number): number => {
     if (r > n) return 0;
