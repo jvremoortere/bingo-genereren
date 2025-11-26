@@ -34,7 +34,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log('Bingo App v1.0.6 Loaded - Vercel Fix');
+    console.log('Bingo App v1.0.8 Loaded - Vercel Fix');
   }, []);
 
   // --- Combinatorics Helpers ---
