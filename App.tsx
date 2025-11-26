@@ -7,7 +7,6 @@ import { Loader2, RefreshCw, LayoutGrid, ListChecks, Sparkles, Image as ImageIco
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
-import FileSaver from 'file-saver';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<GeneratorStatus>(GeneratorStatus.IDLE);
@@ -35,7 +34,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log('Bingo App v1.0.5 Loaded');
+    console.log('Bingo App v1.0.6 Loaded - Vercel Fix');
   }, []);
 
   // --- Combinatorics Helpers ---
@@ -140,6 +139,17 @@ const App: React.FC = () => {
     if (items.length > 0) {
       generateCards(items, cardCount);
     }
+  };
+
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleDownloadPDF = async () => {
@@ -326,7 +336,7 @@ const App: React.FC = () => {
 
       // Generate ZIP
       const content = await zip.generateAsync({ type: "blob" });
-      FileSaver.saveAs(content, `${folderName}.zip`);
+      saveBlob(content, `${folderName}.zip`);
 
     } catch (e) {
       console.error(e);
