@@ -1,8 +1,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { BingoItem, SubjectContext } from "../types";
 
-// Initialize AI client with the environment API key
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper function to get AI instance safely
+const getAIClient = () => {
+  const key = process.env.API_KEY;
+  if (!key) {
+    console.error("API Key missing");
+    throw new Error("API Key ontbreekt");
+  }
+  return new GoogleGenAI({ apiKey: key });
+};
 
 /**
  * Extracts the base64 data and mime type from a Data URL.
@@ -23,6 +30,7 @@ export const detectSubject = async (
   topic: string,
   imageBase64?: string | null
 ): Promise<SubjectContext> => {
+  const ai = getAIClient();
 
   const parts: any[] = [];
   
@@ -78,6 +86,7 @@ export const generateBingoItems = async (
   imageBase64?: string | null,
   mode: 'similar' | 'exact' = 'similar'
 ): Promise<BingoItem[]> => {
+  const ai = getAIClient();
   
   // 1. Construct System Instruction based on context
   let formatInstruction = "";
