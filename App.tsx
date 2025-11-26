@@ -34,7 +34,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log('Bingo App v1.1.2 Loaded - ImportMap Removed');
+    console.log('Bingo App v2.0.0 CLEAN SLATE Loaded');
   }, []);
 
   // --- Combinatorics Helpers ---
