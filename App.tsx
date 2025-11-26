@@ -4,6 +4,8 @@ import { generateBingoItems, detectSubject } from './services/geminiService';
 import { BingoCard } from './components/BingoCard';
 import { MathDisplay } from './components/MathDisplay';
 import { Loader2, RefreshCw, LayoutGrid, ListChecks, Sparkles, Image as ImageIcon, X, Copy, Wand2, Settings2, Calculator, Check, Download } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<GeneratorStatus>(GeneratorStatus.IDLE);
@@ -140,11 +142,6 @@ const App: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     try {
-      // @ts-ignore
-      const { jsPDF } = window.jspdf;
-      // @ts-ignore
-      const html2canvas = window.html2canvas;
-
       // Initialize PDF: A4, Portrait, Millimeters
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = 210;
