@@ -12,6 +12,7 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<GeneratorStatus>(GeneratorStatus.IDLE);
   const [items, setItems] = useState<BingoItem[]>([]);
   const [cards, setCards] = useState<BingoCardData[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   
   // Context
   const [subjectContext, setSubjectContext] = useState<SubjectContext>({ subject: '', isMath: false });
@@ -34,7 +35,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log('Bingo App v2.0.0 CLEAN SLATE Loaded');
+    console.log('Bingo App v2.1.1 (Error Display Update)');
   }, []);
 
   // --- Combinatorics Helpers ---
@@ -101,6 +102,7 @@ const App: React.FC = () => {
 
   // Step 1: Detect Subject
   const handleStartGeneration = async () => {
+    setErrorMessage("");
     if (!topic && !selectedImage) {
         alert("Voer een onderwerp in of upload een afbeelding.");
         return;
@@ -111,14 +113,16 @@ const App: React.FC = () => {
       setSubjectContext(context);
       setTempSubjectName(context.subject);
       setStatus(GeneratorStatus.CONFIRMING);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setErrorMessage(e.message || "Fout bij detecteren onderwerp");
       setStatus(GeneratorStatus.ERROR);
     }
   };
 
   // Step 2: Confirm & Generate
   const handleConfirmAndGenerate = async () => {
+    setErrorMessage("");
     // Update context with potentially edited name
     const finalContext = { ...subjectContext, subject: tempSubjectName };
     setSubjectContext(finalContext);
@@ -129,8 +133,9 @@ const App: React.FC = () => {
       setItems(pool);
       generateCards(pool, cardCount);
       setStatus(GeneratorStatus.SUCCESS);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setErrorMessage(e.message || "Fout bij genereren items");
       setStatus(GeneratorStatus.ERROR);
     }
   };
@@ -581,8 +586,12 @@ const App: React.FC = () => {
           </div>
           
           {status === GeneratorStatus.ERROR && (
-             <div className="bg-red-50 text-red-700 p-3 rounded-md border border-red-200 text-sm">
-                Er is een fout opgetreden. Controleer de API key of input en probeer het opnieuw.
+             <div className="bg-red-50 text-red-700 p-4 rounded-md border border-red-200 text-sm">
+                <p className="font-bold flex items-center gap-2"><X size={16} /> Er is een fout opgetreden:</p>
+                <p className="mt-1 font-mono text-xs bg-red-100 p-2 rounded">{errorMessage}</p>
+                <p className="mt-2 text-xs opacity-80">
+                  Tip: Controleer of je de <code>API_KEY</code> hebt ingesteld in Vercel Environment Variables en of deze geldig is voor 'gemini-2.5-flash'.
+                </p>
              </div>
           )}
         </div>

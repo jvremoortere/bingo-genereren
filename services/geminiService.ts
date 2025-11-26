@@ -4,12 +4,19 @@ import { BingoItem, SubjectContext } from "../types";
 // Helper function to get AI instance safely
 const getAIClient = () => {
   const key = process.env.API_KEY;
-  if (!key) {
-    console.error("API Key missing");
-    throw new Error("API Key ontbreekt");
+  if (!key || key.includes("YOUR_API_KEY") || key === "undefined") {
+    console.error("API Key invalid:", key);
+    throw new Error("API Key ontbreekt of is ongeldig. Controleer Vercel instellingen.");
   }
   return new GoogleGenAI({ apiKey: key });
 };
+
+// Helper to clean Markdown code blocks from JSON response
+function cleanJSON(text: string): string {
+  if (!text) return "";
+  // Remove ```json and ``` or just ```
+  return text.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
+}
 
 /**
  * Extracts the base64 data and mime type from a Data URL.
@@ -64,13 +71,15 @@ export const detectSubject = async (
       }
     });
 
-    if (response.text) {
-        return JSON.parse(response.text) as SubjectContext;
+    const cleanText = cleanJSON(response.text || "");
+    if (cleanText) {
+        return JSON.parse(cleanText) as SubjectContext;
     }
-    throw new Error("Empty response from AI");
+    throw new Error("Geen antwoord van AI (Leeg)");
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error detecting subject:", error);
+    if (error.message.includes("API Key")) throw error; // Re-throw key errors
     // Fallback default
     return { subject: "Algemeen", isMath: false };
   }
@@ -160,10 +169,10 @@ export const generateBingoItems = async (
       }
     });
 
-    const text = response.text;
-    if (!text) throw new Error("No text response");
+    const cleanText = cleanJSON(response.text || "");
+    if (!cleanText) throw new Error("Geen tekst ontvangen van AI");
     
-    const data = JSON.parse(text);
+    const data = JSON.parse(cleanText);
     const itemsArray = data.items || [];
 
     return itemsArray.map((item: any, index: number) => ({
@@ -172,8 +181,9 @@ export const generateBingoItems = async (
       answer: item.answer || "Fout",
     }));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating bingo items:", error);
-    throw new Error("Kon geen items genereren. Probeer het opnieuw.");
+    if (error.message.includes("API Key")) throw error;
+    throw new Error(`Kon geen items genereren: ${error.message}`);
   }
 };
