@@ -31,11 +31,12 @@ const App: React.FC = () => {
   const [generationMode, setGenerationMode] = useState<'similar' | 'exact'>('similar');
   
   const [isDownloading, setIsDownloading] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(""); // Progress text for PDF
   const [isDownloadingImages, setIsDownloadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    console.log('Bingo App v2.1.1 (Error Display Update)');
+    console.log('Bingo App v3.1.0 (PDF Speed Optimization)');
   }, []);
 
   // --- Combinatorics Helpers ---
@@ -159,9 +160,10 @@ const App: React.FC = () => {
 
   const handleDownloadPDF = async () => {
     setIsDownloading(true);
+    setPdfProgress("Starten...");
     
     // Wait for state to settle
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     try {
       // Initialize PDF: A4, Portrait, Millimeters
@@ -181,54 +183,72 @@ const App: React.FC = () => {
       pdf.text(`Bingo: ${subjectContext.subject}`, pageWidth / 2, 20, { align: 'center' });
       
       let cursorY = 30; // Start below title
-      let cursorX = margin;
       
-      const cardElements = document.querySelectorAll('.bingo-card-export');
+      const cardElements = Array.from(document.querySelectorAll('.bingo-card-export'));
       
-      for (let i = 0; i < cardElements.length; i++) {
-        const cardEl = cardElements[i] as HTMLElement;
+      // OPTIMIZATION: Process in batches of 5 to speed up concurrent rendering
+      // without freezing the browser completely.
+      const BATCH_SIZE = 5;
+      
+      for (let i = 0; i < cardElements.length; i += BATCH_SIZE) {
+        setPdfProgress(`${Math.min(i + BATCH_SIZE, cardElements.length)} / ${cardElements.length}`);
         
-        // Capture individual card
-        const canvas = await html2canvas(cardEl, { 
-          scale: 2, // Good quality
+        // Create a batch of promises
+        const batch = cardElements.slice(i, i + BATCH_SIZE);
+        const promises = batch.map(el => html2canvas(el as HTMLElement, { 
+          scale: 1.5, // Reduced slightly from 2 for speed, still good for print
           useCORS: true,
-          logging: false
-        });
-        
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        const imgWidth = cardWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        // Determine Column (0 or 1)
-        const colIndex = i % 2;
-        
-        // Check vertical space BEFORE placing the FIRST card of a row
-        if (colIndex === 0) {
-          if (cursorY + imgHeight > pageHeight - margin) {
-            pdf.addPage();
-            cursorY = margin + 10; // Reset top with slight pad
-          }
+          logging: false 
+        }));
+
+        // Wait for all canvases in this batch
+        const canvases = await Promise.all(promises);
+
+        // Process results
+        for (let j = 0; j < canvases.length; j++) {
+            const canvas = canvases[j];
+            const imgData = canvas.toDataURL('image/jpeg', 0.90);
+            
+            const globalIndex = i + j;
+            const imgWidth = cardWidth;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            const colIndex = globalIndex % 2; // 0 (Left) or 1 (Right)
+
+            // Check if we need a new page
+            // Logic: If it's the LEFT column (start of a row), check vertical space
+            if (colIndex === 0) {
+              if (cursorY + imgHeight > pageHeight - margin) {
+                pdf.addPage();
+                cursorY = margin + 10;
+              }
+            }
+
+            // Calculate X
+            const cursorX = margin + (colIndex * (cardWidth + cardGap));
+
+            // Place Image
+            pdf.addImage(imgData, 'JPEG', cursorX, cursorY, imgWidth, imgHeight);
+
+            // Move cursor down only after completing a row (Right col) or if it's the very last item
+            if (colIndex === 1 || globalIndex === cardElements.length - 1) {
+              cursorY += imgHeight + 10;
+            }
         }
         
-        // Calculate X position based on column
-        cursorX = margin + (colIndex * (cardWidth + cardGap));
-        
-        // Place image
-        pdf.addImage(imgData, 'JPEG', cursorX, cursorY, imgWidth, imgHeight);
-        
-        // Advance cursorY only after the second card (or if it's the last card)
-        if (colIndex === 1 || i === cardElements.length - 1) {
-          cursorY += imgHeight + 10; // Move down for next row
-        }
+        // Small breathing room for UI updates
+        await new Promise(r => setTimeout(r, 0));
       }
       
+      setPdfProgress("Lijst...");
+
       // --- Calling List Page ---
       const listElement = document.getElementById('calling-list-export');
       if (listElement) {
         
-        // 1. Capture the entire list at high resolution
+        // 1. Capture the entire list
         const listCanvas = await html2canvas(listElement, { 
-          scale: 2,
+          scale: 1.5,
           useCORS: true 
         });
 
@@ -256,19 +276,16 @@ const App: React.FC = () => {
           
           let sliceHeight = Math.min(remainingSrcHeight, maxSrcHeightPerPage);
           
-          // If we are not at the end, finding the nearest row breakpoint to avoid cutting text
+          // If we are not at the end, find safe break
           if (remainingSrcHeight > maxSrcHeightPerPage) {
              const cutPoint = currentSrcY + sliceHeight;
-             // Find largest breakpoint smaller than cutPoint
-             const safeBreak = rowBreakpoints.reverse().find(bp => bp < cutPoint && bp > currentSrcY);
-             rowBreakpoints.reverse(); // restore order if needed, or just findLast
+             const safeBreak = rowBreakpoints.slice().reverse().find(bp => bp < cutPoint && bp > currentSrcY);
 
              if (safeBreak) {
                sliceHeight = safeBreak - currentSrcY;
              }
           }
 
-          // Create a temp canvas for this slice
           const tempCanvas = document.createElement('canvas');
           tempCanvas.width = listCanvas.width;
           tempCanvas.height = sliceHeight;
@@ -280,7 +297,7 @@ const App: React.FC = () => {
                0, 0, listCanvas.width, sliceHeight // Dest
              );
              
-             const sliceImgData = tempCanvas.toDataURL('image/jpeg', 0.95);
+             const sliceImgData = tempCanvas.toDataURL('image/jpeg', 0.90);
              const pdfHeight = sliceHeight * canvasToPdfRatio;
              
              pdf.addImage(sliceImgData, 'JPEG', margin, margin, contentWidth, pdfHeight);
@@ -298,6 +315,7 @@ const App: React.FC = () => {
       alert("Er ging iets mis bij het maken van de PDF.");
     } finally {
       setIsDownloading(false);
+      setPdfProgress("");
     }
   };
 
@@ -398,11 +416,11 @@ const App: React.FC = () => {
                   <button 
                     onClick={handleDownloadPDF}
                     disabled={isDownloading || isDownloadingImages}
-                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-wait text-sm"
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-wait text-sm min-w-[140px] justify-center"
                     title="Download als PDF"
                   >
                     {isDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                    {isDownloading ? 'Maken...' : 'Download PDF'}
+                    {isDownloading ? (pdfProgress || 'Maken...') : 'Download PDF'}
                   </button>
                 </>
               )}
