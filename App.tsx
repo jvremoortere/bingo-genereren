@@ -3,9 +3,11 @@ import { BingoItem, BingoCardData, GeneratorStatus, SubjectContext } from './typ
 import { generateBingoItems, detectSubject } from './services/geminiService';
 import { BingoCard } from './components/BingoCard';
 import { MathDisplay } from './components/MathDisplay';
-import { Loader2, RefreshCw, LayoutGrid, ListChecks, Sparkles, Image as ImageIcon, X, Copy, Wand2, Settings2, Calculator, Check, Download } from 'lucide-react';
+import { Loader2, RefreshCw, LayoutGrid, ListChecks, Sparkles, Image as ImageIcon, X, Copy, Wand2, Settings2, Calculator, Check, Download, FileImage } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import JSZip from 'jszip';
+import FileSaver from 'file-saver';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<GeneratorStatus>(GeneratorStatus.IDLE);
@@ -29,6 +31,7 @@ const App: React.FC = () => {
   const [generationMode, setGenerationMode] = useState<'similar' | 'exact'>('similar');
   
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadingImages, setIsDownloadingImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Combinatorics Helpers ---
@@ -279,6 +282,56 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDownloadImages = async () => {
+    setIsDownloadingImages(true);
+    await new Promise(resolve => setTimeout(resolve, 500)); // UI update delay
+    
+    try {
+      const zip = new JSZip();
+      const folderName = `Bingo-${subjectContext.subject.replace(/[^a-z0-9]/gi, '_')}`;
+      const folder = zip.folder(folderName);
+      
+      const cardElements = document.querySelectorAll('.bingo-card-export');
+      
+      // Capture Cards
+      for (let i = 0; i < cardElements.length; i++) {
+        const cardEl = cardElements[i] as HTMLElement;
+        const canvas = await html2canvas(cardEl, { 
+          scale: 2, 
+          useCORS: true,
+          logging: false
+        });
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (blob && folder) {
+           folder.file(`Bingo_Kaart_${i + 1}.png`, blob);
+        }
+      }
+
+      // Capture Calling List
+      const listElement = document.getElementById('calling-list-export');
+      if (listElement && folder) {
+        const listCanvas = await html2canvas(listElement, { 
+          scale: 2, 
+          useCORS: true 
+        });
+        const listBlob = await new Promise<Blob | null>(resolve => listCanvas.toBlob(resolve, 'image/png'));
+        if (listBlob) {
+           folder.file(`Oproeplijst.png`, listBlob);
+        }
+      }
+
+      // Generate ZIP
+      const content = await zip.generateAsync({ type: "blob" });
+      FileSaver.saveAs(content, `${folderName}.zip`);
+
+    } catch (e) {
+      console.error(e);
+      alert("Fout bij het maken van de afbeeldingen.");
+    } finally {
+      setIsDownloadingImages(false);
+    }
+  };
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -311,17 +364,28 @@ const App: React.FC = () => {
               </p>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex gap-2">
                {status === GeneratorStatus.SUCCESS && (
-                <button 
-                  onClick={handleDownloadPDF}
-                  disabled={isDownloading}
-                  className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-wait"
-                  title="Download als PDF"
-                >
-                  {isDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                  {isDownloading ? 'Maken...' : 'Download PDF'}
-                </button>
+                <>
+                  <button 
+                    onClick={handleDownloadImages}
+                    disabled={isDownloading || isDownloadingImages}
+                    className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-wait text-sm"
+                    title="Download als losse afbeeldingen (ZIP)"
+                  >
+                    {isDownloadingImages ? <Loader2 size={18} className="animate-spin" /> : <FileImage size={18} />}
+                    {isDownloadingImages ? 'Zippen...' : 'Download ZIP'}
+                  </button>
+                  <button 
+                    onClick={handleDownloadPDF}
+                    disabled={isDownloading || isDownloadingImages}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-wait text-sm"
+                    title="Download als PDF"
+                  >
+                    {isDownloading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                    {isDownloading ? 'Maken...' : 'Download PDF'}
+                  </button>
+                </>
               )}
             </div>
           </div>
